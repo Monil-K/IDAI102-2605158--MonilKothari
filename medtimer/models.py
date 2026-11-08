@@ -95,8 +95,11 @@ class Medicine:
     def minutes_until(self, now: datetime | None = None) -> int:
         """Whole minutes until this dose is due (negative once overdue)."""
         now = now or datetime.now()
-        delta = self.scheduled_on(now.date()) - now
-        return int(delta.total_seconds() // 60)
+        today_due = self.scheduled_on(now.date())
+        if now < today_due:
+            return int((today_due - now).total_seconds() // 60)
+        tomorrow_due = self.scheduled_on(now.date() + timedelta(days=1))
+        return int((tomorrow_due - now).total_seconds() // 60)
 
     # -- storage -------------------------------------------------------
     def to_dict(self) -> dict[str, object]:
