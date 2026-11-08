@@ -169,4 +169,4 @@ Open this link on any device — phone, tablet or laptop:
 
 _TODO — replace with the Streamlit Cloud URL after the first deploy, for example:_
 
-`https://<app-name>.streamlit.app/`
+`[https://<app-name>.streamlit.app/](https://idai102-medtimer-qrdghps6pmchor2mt9xqwt.streamlit.app/)`
