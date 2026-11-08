@@ -138,13 +138,35 @@ are written as "7 hr 51 min overdue" instead of "471 min".
 
 ## Deployment (Streamlit Cloud)
 
+The app is hosted for free on [Streamlit Cloud](https://share.streamlit.io) so anyone with
+the link can open it on a phone, tablet or laptop — no install, no login.
+
+### First-time setup (one-off, by the repo owner)
+
 1. Push this repository to GitHub.
-2. Go to <https://share.streamlit.io> → **Create app**.
-3. Select the repository, branch `main`, main file `app.py`.
-4. Deploy — no secrets or environment variables are required.
+2. Open <https://share.streamlit.io> and sign in with GitHub.
+3. Click **New app** (or **Create app**).
+4. Pick this repository, the `main` branch, and main file path `app.py`.
+5. Click **Deploy**. Streamlit builds the app from `requirements.txt`.
+
+No secrets, API keys or environment variables are needed — the app stores everything
+locally in the browser session and in a small JSON file the user controls.
+
+### After deploy
+
+- The live URL lands on the **Live app** section below. Paste it there, commit, and push
+  so the link travels with the repo.
+- Every subsequent git push to `main` auto-redeploys the app.
+- Anyone with the link can open the app in any modern browser. If they want their own
+  copy, they can **Fork** the repo on GitHub and deploy their fork the same way — each
+  copy keeps its own data.
 
 ---
 
 ## Live app
 
-_Add the deployed URL here after the first deployment._
+Open this link on any device — phone, tablet or laptop:
+
+_TODO — replace with the Streamlit Cloud URL after the first deploy, for example:_
+
+`https://<app-name>.streamlit.app/`
