@@ -1,0 +1,14 @@
+# Runtime state written by medtimer/state.py — local data, not source.
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS
+.DS_Store
