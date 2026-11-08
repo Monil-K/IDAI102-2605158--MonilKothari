@@ -164,11 +164,44 @@ def live_plan(state: AppState) -> None:
                     edited_name = st.text_input(
                         "Name", value=medicine.name, key=f"name-{medicine.uid}"
                     )
-                    edited_time = st.time_input(
-                        "Time",
-                        value=medicine.scheduled,
-                        key=f"time-{medicine.uid}",
-                        step=60,
+                    # Mirror the add form: a 12-hour clock with an explicit AM/PM
+                    # pick, pre-filled from the medicine's current schedule.
+                    cur = medicine.scheduled_24h
+                    if cur.hour == 0:
+                        edit_hour = 12
+                        edit_meridian = "AM"
+                    elif cur.hour < 12:
+                        edit_hour = cur.hour
+                        edit_meridian = "AM"
+                    elif cur.hour == 12:
+                        edit_hour = 12
+                        edit_meridian = "PM"
+                    else:
+                        edit_hour = cur.hour - 12
+                        edit_meridian = "PM"
+                    edit_minute = cur.minute
+                    edited_hour = st.number_input(
+                        "Hour (1-12)",
+                        min_value=1,
+                        max_value=12,
+                        value=edit_hour,
+                        step=1,
+                        key=f"edit-hour-{medicine.uid}",
+                    )
+                    edited_minute = st.number_input(
+                        "Minute",
+                        min_value=0,
+                        max_value=59,
+                        value=edit_minute,
+                        step=1,
+                        key=f"edit-minute-{medicine.uid}",
+                    )
+                    edited_meridian = st.radio(
+                        "AM / PM",
+                        options=("AM", "PM"),
+                        index=0 if edit_meridian == "AM" else 1,
+                        key=f"edit-meridian-{medicine.uid}",
+                        horizontal=True,
                     )
                     if st.button(
                         "Save changes",
@@ -182,9 +215,10 @@ def live_plan(state: AppState) -> None:
                             update_medicine(
                                 state,
                                 medicine.uid,
-                                name=edited_name,
-                                hour=edited_time.hour,
-                                minute=edited_time.minute,
+                                name=edited_name.strip(),
+                                hour=int(edited_hour),
+                                minute=int(edited_minute),
+                                meridian=edited_meridian,
                             )
                             save_state(state)
                             st.session_state["medtimer.flash"] = "Medicine updated"
@@ -302,10 +336,32 @@ with left:
                     key="add-name",
                 )
             with c2:
-                # step=60 lets a prescription be set to any minute, not just
-                # the default quarter hours.
-                new_time = st.time_input(
-                    "Time", value=time(8, 0), key="add-time", step=60
+                # 12-hour clock with an explicit AM/PM pick so the app never
+                # confuses 8:00 AM with 8:00 PM. ``st.time_input`` alone only
+                # knows the 24-hour value it was given, never the user's intent.
+                add_hour = st.number_input(
+                    "Hour (1-12)",
+                    min_value=1,
+                    max_value=12,
+                    value=8,
+                    step=1,
+                    key="add-hour",
+                    help="1 to 12 — type the hour you see on a 12-hour clock.",
+                )
+                add_minute = st.number_input(
+                    "Minute",
+                    min_value=0,
+                    max_value=59,
+                    value=0,
+                    step=1,
+                    key="add-minute",
+                )
+                add_meridian = st.radio(
+                    "AM / PM",
+                    options=("AM", "PM"),
+                    index=0,
+                    key="add-meridian",
+                    horizontal=True,
                 )
             with c3:
                 submitted = st.form_submit_button(
@@ -316,7 +372,13 @@ with left:
             if not new_name.strip():
                 st.error("Please enter a medicine name.")
             else:
-                add_medicine(state, new_name, new_time.hour, new_time.minute)
+                add_medicine(
+                    state,
+                    new_name.strip(),
+                    hour=int(add_hour),
+                    minute=int(add_minute),
+                    meridian=add_meridian,
+                )
                 save_state(state)
                 st.session_state["medtimer.flash"] = f"Added {new_name.strip()}"
                 st.rerun()

@@ -43,11 +43,18 @@ class Status(str, Enum):
 
 @dataclass
 class Medicine:
-    """A single recurring daily medication."""
+    """A single recurring daily medication.
+
+    The schedule is stored as a 12-hour clock plus an AM/PM meridian so the
+    add/edit form can ask the user for the meridian explicitly (``8:00 PM``
+    stays 8 PM even when the wall clock is 4 PM). The model converts that to
+    a 24-hour ``scheduled_on`` only at the point of computing due times.
+    """
 
     name: str
-    hour: int
-    minute: int
+    hour: int            # 1-12 (12-hour clock)
+    minute: int          # 0-59
+    meridian: str = "AM"  # "AM" or "PM"
     uid: str = field(default_factory=lambda: uuid4().hex[:8])
     #: When today's dose was logged; ``None`` means "not taken yet".
     taken_at: datetime | None = None
@@ -56,8 +63,12 @@ class Medicine:
         self.name = self.name.strip()
         if not self.name:
             raise ValueError("A medicine needs a name.")
-        if not (0 <= self.hour <= 23 and 0 <= self.minute <= 59):
-            raise ValueError("Hour must be 0-23 and minute must be 0-59.")
+        if not (1 <= self.hour <= 12):
+            raise ValueError("Hour must be 1-12 (12-hour clock with AM/PM).")
+        if not (0 <= self.minute <= 59):
+            raise ValueError("Minute must be 0-59.")
+        if self.meridian not in ("AM", "PM"):
+            raise ValueError("Meridian must be 'AM' or 'PM'.")
 
     @property
     def taken(self) -> bool:
@@ -70,11 +81,28 @@ class Medicine:
         self.taken_at = datetime.now() if value else None
 
     @property
+    def scheduled_24h(self) -> time:
+        """The scheduled time as a 24-hour ``datetime.time``, derived from the
+        12-hour ``hour`` + ``meridian``. ``12:00 AM`` -> 0:00, ``12:00 PM`` -> 12:00.
+        """
+        h12 = self.hour
+        h24 = h12 % 12
+        if self.meridian == "PM":
+            h24 += 12
+        return time(hour=h24, minute=self.minute)
+
+    @property
     def scheduled(self) -> time:
-        return time(hour=self.hour, minute=self.minute)
+        """Deprecated alias kept so existing markup calls still resolve.
+
+        Prefer :attr:`scheduled_24h` when a real 24-hour time is needed; this
+        property is retained only for backward compatibility with any code that
+        calls ``medicine.scheduled`` and expects a ``time`` back.
+        """
+        return self.scheduled_24h
 
     def scheduled_on(self, day: date) -> datetime:
-        return datetime.combine(day, self.scheduled)
+        return datetime.combine(day, self.scheduled_24h)
 
     def status(self, now: datetime | None = None) -> Status:
         """Return the dose status relative to ``now``.
@@ -121,6 +149,7 @@ class Medicine:
             "name": self.name,
             "hour": self.hour,
             "minute": self.minute,
+            "meridian": self.meridian,
             "taken_at": self.taken_at.isoformat() if self.taken_at else None,
         }
 
@@ -130,12 +159,29 @@ class Medicine:
 
         Raises ``ValueError``/``KeyError``/``TypeError`` on malformed input so
         the caller can skip a single bad record instead of losing the file.
+
+        Old records that predate the meridian field (``hour`` as a 24-hour
+        value, no ``meridian`` key) are upgraded: a stored hour in 0-11 is
+        treated as AM, 12-23 as PM, so existing users do not lose their doses.
         """
         taken_at = data.get("taken_at")
+        hour = int(data["hour"])
+        minute = int(data["minute"])
+        meridian = str(data.get("meridian", "")).upper()
+        # Backward compatibility: old records stored hour as 0-23 with no meridian.
+        # Infer the meridian from the stored hour so those doses keep working.
+        if not meridian:
+            if 0 <= hour <= 11:
+                meridian = "AM"
+            else:
+                meridian = "PM"
+            # Convert 24-hour hour to 12-hour.
+            hour = hour % 12 or 12
         return cls(
             name=str(data["name"]),
-            hour=int(data["hour"]),
-            minute=int(data["minute"]),
+            hour=hour,
+            minute=minute,
+            meridian=meridian,
             uid=str(data.get("uid") or uuid4().hex[:8]),
             taken_at=datetime.fromisoformat(taken_at) if taken_at else None,
         )
@@ -155,7 +201,8 @@ class AppState:
 
     @property
     def sorted_medicines(self) -> list[Medicine]:
-        return sorted(self.medicines, key=lambda m: (m.hour, m.minute))
+        # Sort by the real 24-hour clock so 8 AM (08:00) comes before 8 PM (20:00).
+        return sorted(self.medicines, key=lambda m: (m.scheduled_24h.hour, m.scheduled_24h.minute))
 
     @property
     def doses_taken(self) -> int:
@@ -169,7 +216,8 @@ class AppState:
         """
         now = now or datetime.now()
         pending = [m for m in self.medicines if not m.taken]
-        return min(pending, key=lambda m: (m.hour, m.minute), default=None)
+        # Sort by the real 24-hour order so 8 PM sorts after 8 AM.
+        return min(pending, key=lambda m: (m.scheduled_24h.hour, m.scheduled_24h.minute), default=None)
 
     def to_dict(self) -> dict[str, object]:
         """Plain-data form of the whole session, ready for ``json.dumps``."""
@@ -207,8 +255,14 @@ class AppState:
 # ---------------------------------------------------------------------------
 # Mutations — every function takes the state it acts on and returns it
 # ---------------------------------------------------------------------------
-def add_medicine(state: AppState, name: str, hour: int, minute: int) -> Medicine:
-    medicine = Medicine(name=name, hour=hour, minute=minute)
+def add_medicine(
+    state: AppState,
+    name: str,
+    hour: int,
+    minute: int,
+    meridian: str = "AM",
+) -> Medicine:
+    medicine = Medicine(name=name, hour=hour, minute=minute, meridian=meridian)
     state.medicines.append(medicine)
     return medicine
 
@@ -220,6 +274,7 @@ def update_medicine(
     name: str | None = None,
     hour: int | None = None,
     minute: int | None = None,
+    meridian: str | None = None,
 ) -> bool:
     medicine = state.find(uid)
     if medicine is None:
@@ -233,6 +288,8 @@ def update_medicine(
         medicine.hour = hour
     if minute is not None:
         medicine.minute = minute
+    if meridian is not None:
+        medicine.meridian = meridian
     return True
 
 

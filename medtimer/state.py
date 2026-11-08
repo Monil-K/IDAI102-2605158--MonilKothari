@@ -26,17 +26,17 @@ _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _STATE_FILE = _DATA_DIR / "medtimer.json"
 
 # Realistic demo data so a first-time visitor sees a populated dashboard.
-SAMPLE_MEDICINES: tuple[tuple[str, int, int], ...] = (
-    ("Metformin 500 mg", 8, 0),
-    ("Lisinopril 10 mg", 8, 30),
-    ("Atorvastatin 20 mg", 20, 0),
+SAMPLE_MEDICINES: tuple[tuple[str, int, int, str], ...] = (
+    ("Metformin 500 mg", 8, 0, "AM"),
+    ("Lisinopril 10 mg", 8, 30, "AM"),
+    ("Atorvastatin 20 mg", 8, 0, "PM"),
 )
 
 
 def _seed() -> AppState:
     state = AppState()
-    for name, hour, minute in SAMPLE_MEDICINES:
-        add_medicine(state, name, hour, minute)
+    for name, hour, minute, meridian in SAMPLE_MEDICINES:
+        add_medicine(state, name, hour, minute, meridian=meridian)
     return state
 
 
