@@ -93,11 +93,23 @@ class Medicine:
         return Status.MISSED
 
     def minutes_until(self, now: datetime | None = None) -> int:
-        """Whole minutes until this dose is due (negative once overdue)."""
+        """Whole minutes until this dose's next occurrence from *now*.
+
+        For an untaken dose whose scheduled time today has already passed, the
+        result is negative ("overdue by N minutes"). For a dose still upcoming
+        today, the result is positive ("in N minutes"). A dose already logged
+        today this is not the next dose and ``next_dose`` will skip it.
+        """
         now = now or datetime.now()
         today_due = self.scheduled_on(now.date())
         if now < today_due:
             return int((today_due - now).total_seconds() // 60)
+        # Today's scheduled time already passed. If the dose is still untaken,
+        # report it as overdue (negative) — the card/user needs to know how late
+        # this specific dose is, not when tomorrow's copy runs.
+        if not self.taken:
+            return int((today_due - now).total_seconds() // 60)
+        # Dose already logged today: the next occurrence is tomorrow's.
         tomorrow_due = self.scheduled_on(now.date() + timedelta(days=1))
         return int((tomorrow_due - now).total_seconds() // 60)
 

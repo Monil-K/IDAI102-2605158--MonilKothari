@@ -59,7 +59,7 @@ def humanise_minutes(minutes: int) -> str:
     if minutes == 0:
         return "due now"
     if minutes < 0:
-        return f"{humanise_duration(minutes)} overdue"
+        return f"overdue by {humanise_duration(-minutes)}"
     return f"in {humanise_duration(minutes)}"
 
 
@@ -108,17 +108,20 @@ def clock_strip(now: datetime, next_medicine: Medicine | None = None) -> str:
         message, tone = "All doses logged for today &#127881;", "ok"
     else:
         name = html.escape(next_medicine.name)
-        remaining = next_medicine.minutes_until(now)
-        if remaining < 0:
-            message = f"{name} overdue by {humanise_duration(remaining)}"
+        next_minutes = next_medicine.minutes_until(now)
+        if next_minutes < 0:
+            message = (
+                f"Next: {name} at {fmt_time(next_medicine)} "
+                f"&middot; {humanise_minutes(next_minutes)}"
+            )
             tone = "danger"
-        elif remaining == 0:
+        elif next_minutes == 0:
             message = f"{name} due now"
             tone = "warn"
         else:
             message = (
                 f"Next: {name} at {fmt_time(next_medicine)} "
-                f"&middot; {humanise_minutes(remaining)}"
+                f"&middot; {humanise_minutes(next_minutes)}"
             )
             tone = "brand"
 
