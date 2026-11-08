@@ -167,6 +167,19 @@ locally in the browser session and in a small JSON file the user controls.
 
 Open this link on any device — phone, tablet or laptop:
 
-_TODO — replace with the Streamlit Cloud URL after the first deploy, for example:_
+**MedTimer — Daily Medicine Companion**
+(IDAI102 Python Programming, Scenario 2 — summative assessment)
 
-`https://<app-name>.streamlit.app/`
+https://idai102-medtimer-qrdghps6pmchor2mt9xqwt.streamlit.app/
+
+### Source code (GitHub)
+
+Student: Monil Kothari  (SID: 2605158)
+
+https://github.com/Monil-K/IDAI102-MedTimer.git
+
+> The repository is named `IDAI102-MedTimer` on GitHub right now and will be renamed to
+> `IDAI102(2605158)-monilkothari` to match the brief's naming convention.
+>
+> Every push to `main` auto-redeploys the app. Anyone with the link above can open it on
+> any device — no install, no login.
